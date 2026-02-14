@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.5.1/styles/default.min.css" rel="stylesheet">
+    <title>AI Judge Query Interface</title>
+    <style>
+        body {
+            background-color: #ffffff;
+            color: #333333;
+        }
+        .chat-container {
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 10px;
+        }
+        .code-box {
+            background-color: #f8f8f8;
+            border: 1px solid #e2e2e2;
+            border-radius: 5px;
+            padding: 10px;
+            position: relative;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+        .code-box pre {
+            margin: 0;
+            white-space: pre-wrap;
+        }
+        .copy-button {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: #007acc;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .copy-button:hover {
+            background-color: #005f99;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/marked@3.0.0/marked.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.5.1/highlight.min.js" defer></script>
+</head>
+<body class="flex flex-col min-h-screen">
+    <div class="container mx-auto my-4 flex-grow flex flex-col">
+        <h1 class="text-4xl font-bold text-center mb-4">AI Judge SQL Query Interface</h1>
+        <div id="chatHistory" class="chat-container p-4 bg-gray-100 rounded-lg shadow-md">
+            <!-- Chat history will be dynamically inserted here -->
+        </div>
+
+        <form id="queryForm" class="mt-4 flex">
+            <textarea id="userPrompt" rows="2" class="flex-grow p-2 border border-gray-300 rounded-lg" placeholder="Enter your query here..."></textarea>
+            <button type="submit" class="ml-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">Send</button>
+        </form>
+
+        <div id="loading" class="loading text-blue-500">Generating SQL query...</div>
+    </div>
+
+    <footer class="bg-gray-200 text-center py-4">
+        <div class="container mx-auto">
+            <p class="text-lg font-semibold">AI Judge SQL Interface © 2024</p>
+        
+        </div>
+    </footer>
+
+    <script>
+        window.addEventListener('load', () => {
+            function loadChatHistory() {
+                const history = JSON.parse(sessionStorage.getItem('chatHistory')) || [];
+                const chatHistoryDiv = document.getElementById('chatHistory');
+                chatHistoryDiv.innerHTML = '';
+
+                history.forEach(item => {
+                    const messageDiv = document.createElement('div');
+                    messageDiv.classList.add('flex', 'justify-' + (item.user ? 'end' : 'start'), 'mb-4');
+
+                    const formattedMessage = item.text.split('\\n').join('<br>');
+                    messageDiv.innerHTML = `
+                        <div class="${item.user ? 'bg-blue-100' : 'bg-gray-200'} p-3 rounded-lg">
+                            <strong>${item.user ? 'User' : 'AI Judge'}:</strong>
+                            <div>${formattedMessage}</div>
+                        </div>
+                    `;
+                    chatHistoryDiv.appendChild(messageDiv);
+                });
+            }
+
+            loadChatHistory();
+
+            document.getElementById('queryForm').onsubmit = async function(event) {
+                event.preventDefault();
+                const userPrompt = document.getElementById('userPrompt').value.trim();
+                if (!userPrompt) return;
+
+                addMessageToSessionStorage(true, userPrompt);
+                document.getElementById('loading').style.display = 'block';
+
+                try {
+                    const response = await fetch('/evaluate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ case_description: userPrompt }),
+                    });
+
+                    
+
+                    if (!response.ok) throw new Error('Network error');
+
+                    const botResponse = await response.text();
+                    addMessageToSessionStorage(false, botResponse);
+                    loadChatHistory();
+                } catch (error) {
+                    console.error(error);
+                } finally {
+                    document.getElementById('loading').style.display = 'none';
+                }
+            };
+
+            function addMessageToSessionStorage(isUser, message) {
+                const history = JSON.parse(sessionStorage.getItem('chatHistory')) || [];
+                history.push({ user: isUser, text: message });
+                sessionStorage.setItem('chatHistory', JSON.stringify(history));
+            }
+        });
+    </script>
+</body>
+</html>
